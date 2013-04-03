@@ -9,12 +9,13 @@ import Control.Monad.Identity
 import Control.Monad
 import Control.Monad.Trans
 
-import Control.Pipe
+import Control.Proxy
+import Control.Proxy.Pipe
 
-fromList :: Monad m => [a] -> Producer a m ()
+fromList :: Monad m => [a] -> Producer ProxyFast a m ()
 fromList = mapM_ yield
 
-take' :: Int -> Pipe a a IO ()
+take' :: Int -> Pipe ProxyFast a a IO ()
 take' n =
   do
     replicateM_ n $ do
@@ -22,7 +23,7 @@ take' n =
       yield x
     lift $ putStrLn "You shall not pass!"
 
-takePure :: Monad m => Int -> Pipe a a m ()
+takePure :: Monad m => Int -> Pipe ProxyFast a a m ()
 takePure n =
   do
     replicateM_ n $ do
@@ -30,7 +31,7 @@ takePure n =
       yield x
 
 
-printer :: (Show a) => Consumer a IO r
+printer :: (Show a) => Consumer ProxyFast a IO r
 printer =
   forever $ do
     x <- await
@@ -39,13 +40,13 @@ printer =
 --pipeline :: Pipe () C IO ()
 pipeline = printer <+< take' 3 <+< fromList [1..]
 
-produceFrom :: (Monad m) => Int -> Producer Int m a
+produceFrom :: (Monad m) => Int -> Producer ProxyFast Int m a
 produceFrom i =
   do
     yield i
     produceFrom $! (i+1)
 
-produceFromTo :: (Monad m) => Int -> Int -> Producer Int m ()
+produceFromTo :: (Monad m) => Int -> Int -> Producer ProxyFast Int m ()
 produceFromTo i j =
   do
     if i == j then return ()
@@ -53,14 +54,14 @@ produceFromTo i j =
               (produceFromTo $! i+1) j
 
 
-count :: Monad m => Pipe i Int m a
+count :: Monad m => Pipe ProxyFast i Int m a
 count =
   forever $ do
     _ <- await
     yield 1
 
     
-logger :: Monad m => Pipe Int Int m a
+logger :: Monad m => Pipe ProxyFast Int Int m a
 logger =
   forever $ do
     x <- await
@@ -75,7 +76,7 @@ intLog b x = if x < b then 0
                               else divide (x `div` b) (l+1)
 
 
-sumTo :: Monad m => Int -> Pipe Int Int m ()
+sumTo :: Monad m => Int -> Pipe ProxyFast Int Int m ()
 sumTo = sumTo' 0
   where
     sumTo' a limit =
@@ -86,11 +87,11 @@ sumTo = sumTo' 0
           sumTo' (x+a) limit
   
 
-expoPipe :: Monad m => Int -> Pipe Int Int m a
+expoPipe :: Monad m => Int -> Pipe ProxyFast Int Int m a
 expoPipe 0 = forever $ do {x <- await; yield $! x+1}
 expoPipe n = expoPipe (n-1) <+< expoPipe (n-1)
 
-blackhole :: Monad m => Consumer a m b
+blackhole :: Monad m => Consumer ProxyFast a m b
 blackhole = forever await
 
 test0 n = blackhole <+< produceFromTo 1 n
